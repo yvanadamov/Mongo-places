@@ -1,0 +1,44 @@
+body {
+  padding: 50px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: #00B7FF;
+}
+
+h1, h2, h3, h4 {
+	text-align: center;
+	font:weight: 900;
+}
+
+ul li {
+	list-style-type: none;
+}
+
+#pois {
+	max-width: 1500px;
+}
+
+#sample {
+	height: 580px;
+	width: 570px; 
+	float: left;
+}
+
+#likes, #list {
+	margin-left: 50px;
+	max-width: 250px; 
+	float: left;
+	height: 580px;
+	border: 1px solid black;
+}
+
+.poili {
+	margin: 10px;
+}
+
+.delfav {
+	float: right;
+	margin-left: 2px;
+}
