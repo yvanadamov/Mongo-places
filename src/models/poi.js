@@ -31,8 +31,6 @@ var poiSchema = new Schema({
 poiSchema.methods.findSimilarTypes = function(cb) {
 	var type = this.specificInfo.type;
 
-	console.log(type);
-
 	return this.model(modelName)
 			.find({'specificInfo.type': type}, fields, cb);
 };

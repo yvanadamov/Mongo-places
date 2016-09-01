@@ -21,6 +21,7 @@ userSchema.statics.addPOI = function(userID, poiID, cb) {
 	POI.getInfo(poiID, function(err, poi) {
 		if(err) {
 			console.error(err);
+			return;
 		}
 
 		var query = {_id: userID};

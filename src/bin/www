@@ -4,7 +4,12 @@
  * Module dependencies.
  */
 
-var app = require('../app');
+var basePath = '../config/';
+
+var app = require(basePath+'express');
+var mongoose = require(basePath+'mongoose');
+var passport = require(basePath+'passport');
+
 var debug = require('debug')('mongoplaces:server');
 var http = require('http');
 
