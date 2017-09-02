@@ -1,0 +1,392 @@
+<DOCTYPE html>
+<html>
+    <head>
+        <title>Mongo places</title>
+        <meta charset="utf-8"/>
+        <script crossorigin src="https://unpkg.com/react@15/dist/react.min.js"></script>
+        <script crossorigin src="https://unpkg.com/react-dom@15/dist/react-dom.min.js"></script>
+        <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.23/browser.js"></script>
+        <script crossorigin src="http://code.jquery.com/jquery.js"></script>
+        <script src='http://maps.googleapis.com/maps/api/js'></script>
+    </head>
+    
+    <body>
+
+        <script type="text/babel">
+            const Nav = React.createClass({
+                handleLogin: function() {
+                    this.props.login(this.refs.username.value, this.refs.password.value);
+                },
+
+                handleRegister: function() {
+                    this.props.register(this.refs.username.value, this.refs.password.value);
+                },
+
+                renderLogged: function() {
+                    return <div>
+                            <p>
+                                You are currently logged in as {this.props.getUser()} 
+                                <button onClick={this.props.logout}>Logout</button>
+                            </p>
+                        </div>;
+                },
+
+                renderNotLogged: function() {
+                    return <div>
+                            <p>
+                                <input type="text" ref="username" placeholder="username"/>
+                                <input type="password" ref="password" placeholder="pass"/>
+                                <button onClick={this.handleLogin}>Login</button>
+                                <button onClick={this.handleRegister}>Register</button>
+                            </p>
+                        </div>;
+                },
+
+                render: function() {
+                    return (this.props.getUser() != null) ? this.renderLogged() : this.renderNotLogged();
+                }
+            });
+
+            const Map = React.createClass({
+                all: {},
+                favs: {},
+                markers: {},
+                
+                componentDidMount: function() {
+                    this.map = new google.maps.Map(this.refs.map, {
+                        center: new google.maps.LatLng(0, 0), 
+                        zoom: 3,
+                        mapTypeId: google.maps.MapTypeId.ROADMAP
+                    });
+
+                    if(navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(function(pos) {
+                            let center = new google.maps.LatLng(parseFloat(pos.coords.latitude), parseFloat(pos.coords.longitude));
+                            this.map.setCenter(center);
+                        }.bind(this));
+                	}
+
+                    this.setHandlers();
+                    this.renderStats();
+                    this.props.getPlaces(function(err, all, favs) {
+                        all.forEach(function(poi) {this.all[poi._id] = poi;}, this);
+                        
+                        if(favs) {
+                            favs.forEach(function(poi) {this.favs[poi._id] = poi;}, this);    
+                        }        
+
+                       this.addMarkers(this.all); 
+                    }.bind(this));
+                },
+
+                addMarkers: function(pois) {
+	                let id;
+	                let loc;
+	                let name;
+	                let marker;
+
+                    // Always clear current markers before adding new ones
+                    this.clearMarkers();
+	
+                    // pois is object
+                    for(let i in pois) {
+                        id		= pois[i]._id;
+                        loc		= pois[i].location;
+                        name	= pois[i].name;
+
+                        // Add marker
+                        this.markers[id] = {
+                            marker: new google.maps.Marker({
+                                position: new google.maps.LatLng(loc[1], loc[0]), 
+                                map: this.map
+                            }), 
+                            infoWindow: null
+                        };
+
+                        // Add info window
+                        this.addInfoWindow(id, name);
+
+                        // Update list
+                        let nodeLI = document.createElement('LI');
+                        nodeLI.dataset.poi_id = id;
+                        let nodeText = document.createTextNode(name);
+                        nodeLI.appendChild(nodeText);
+                        nodeLI.className = 'poili';
+                        this.refs.poiList.appendChild(nodeLI);
+                    }
+                },
+
+                clearMarkers: function() {
+                    for(let id in this.markers) {
+                        this.markers[id].marker.setMap(null);
+                        delete this.markers[id];
+                    }
+
+                    while (this.refs.poiList.firstChild) {
+                        this.refs.poiList.removeChild(this.refs.poiList.firstChild);
+                    }
+                },
+
+                addInfoWindow: function(id, name) {
+	                let	marker   	= this.markers[id];
+	                let markerCtrl  = marker.marker;
+	                let canBeAdded	= (this.props.getUser() != null && !this.favs.hasOwnProperty(id));  
+
+                    markerCtrl.addListener('click', function() {
+                        if(marker.infoWindow != null) {
+                            marker.infoWindow.open(this.map, markerCtrl);
+                            return; 
+                        }
+                        this.props.getPlaceInfo(id, function(err, poi) {
+                            if(err) {
+                                return;
+                            }
+                            let windowContent = '<b>'+name+'</b><br/>'+
+				                                '<b>nastilka: '+poi.ground+'</b><br/>'+
+				                                '<b>razmeri: '+poi.size.join('/')+'</b><br/>'+
+				                                '<b>cena na chas: '+poi.price+'lv</b><br/>'+
+				                                '<b>info: '+poi.description+'</b><br/>'+	
+                                                '<button class="mapLink" data-href="method=1&id='+id+'">This type objects</button><br>'+
+                                                '<button class="mapLink" data-href="method=2&id='+id+'">Nearest 5 objects</button><br>'+
+                                                '<button class="mapLink" data-href="method=3&id='+id+'">Objecs like this</button><br>';
+
+                            if(canBeAdded) {
+                                windowContent += '<button data-poi_id="'+id+'" class="addfav">Add to favorites</button>';
+                            }
+
+                            marker.infoWindow = new google.maps.InfoWindow({content: windowContent});
+		                	marker.infoWindow.open(this.map, markerCtrl);
+                        }.bind(this));
+                    }.bind(this));
+	            },
+
+                setHandlers: function() {
+                    let that = this;
+                    // to make links in info windows asynch requests
+                    $(document).on('click', '.mapLink', function(){
+                        that.props.filterPlaces($(this).data('href'), function(pois) {
+                            that.addMarkers(pois);
+                        });
+                    });
+
+                    // to return all objects from frontend instead of sending request 
+                    $(document).on('click', '.all', function() {
+                        that.addMarkers(that.all);
+                    });
+
+                    // to return favs from user object instead of sending request
+                    $(document).on('click', '.favs', function() {
+                        that.addMarkers(that.favs);
+                        $('.poili').append('<button class="delfav">Remove</button>');
+                    });
+
+                    // add poi to user favorites
+	                $(document).on('click', '.addfav', function() {
+		                let button = this;
+                        let poiID = $(button).data('poi_id');
+
+                        that.props.addToFavs(poiID, function(err) {
+                            if(err) {
+                                return;
+                            }
+                            that.favs[poiID] = that.all[poiID];
+                            alert('Object was successfully added to your favorites');
+                            button.remove();
+                            that.renderStats();
+                        });
+                    });
+
+                    $(document).on('click', '.delfav', function() {
+                        let li = $(this).parent();                
+                        let poiID =  $(li).data('poi_id');
+                        
+                        that.props.removeFromFavs(poiID, function(err) {
+                            if(err) {
+                                return;
+                            }
+
+                            that.markers[poiID].marker.setMap(null);
+                            delete that.markers[poiID];
+                            delete that.favs[poiID];
+                            
+                            // prompt success to user and remove adding button
+                            alert('Object was successfully deleted from your favorites');
+                            li.remove();
+                            updateLikes();
+                        });
+                    });
+                },
+
+                renderStats: function() {
+                    this.props.getStats(function(categories) {
+                        categories.forEach(function(cat) {
+			                let title = Object.keys(cat)[0];
+			                let list = cat[title].reduce(function(prev, cur) {
+				                return prev+'<li>'+cur.name+' - '+cur.likes+'</li>';
+		                	}, '');
+
+			                $(this.refs.stats).append('<div><h4>'+title+'</h4><ol>'+list+'</ol></div>');
+		                }, this);
+                    }.bind(this));
+                },
+
+                renderLogged: function() {
+                    const mapStyle = {height: 580, width: 580, float: 'left'};
+                    const listStyle = {height: 580, width: 200, float: 'left'};
+                    return <div>
+                                <div><button className="all">All</button><button className="favs">Favourites</button></div>
+                                <div ref="map" style={mapStyle}>I should be a map!</div>
+                                <ul ref="poiList" style={listStyle}></ul>
+                                <ul ref="stats" style={listStyle}></ul>
+                            </div>;
+                },
+
+                renderNotLogged: function() {
+                    const mapStyle = {height: 580, width: 580, float: 'left'};
+                    const listStyle = {height: 580, width: 200, float: 'left'};
+                    return <div>
+                                <div><button className="all">All</button></div>
+                                <div ref="map" style={mapStyle}>I should be a map!</div>
+                                <ul ref="poiList" style={listStyle}></ul>
+                                <ul ref="stats" style={listStyle}></ul>
+                            </div>;
+                },
+
+                render: function() {
+                    return (this.props.getUser() != null) ? this.renderLogged() : this.renderNotLogged();
+                }
+            });
+
+            const Board = React.createClass({
+                server: 'http://localhost:3000/',
+
+                getInitialState: function() {
+                    return {user: null};
+                },
+
+                login: function(username, password) {
+                    const route = this.server+'login';
+                    const params = {
+                        username: username, 
+                        password: password
+                    };
+
+                    $.post(route, params, function(result) {
+                        if(result.success) {
+                            this.setState({user: params.username});
+                            return;
+                        }
+                        alert(result.error);
+                    }.bind(this));
+                },
+
+                logout: function() {
+                    const route = this.server+'logout';
+                    $.get(route, function(result) {
+                        if(result.success) {
+                            this.setState({user: null});
+                        }
+                    }.bind(this));
+                },
+
+                register: function(username, password) {
+                    const route = this.server+'register';
+                    const params = {
+                        username: username, 
+                        password: password
+                    };
+
+                    $.post(route, params, function(result) {
+                        if(result.success) {
+                            this.setState({user: params.username});
+                            return;
+                        }
+                        alert(result.error);
+                    }.bind(this));
+                },
+
+                getUser: function() {
+                    return this.state.user;
+                },
+
+                getPlaces: function(cb) {
+                    const route = this.server+'pois/all/cash';
+                    $.get(route, function(result) {
+                        if(!result.success) {
+                            return cb(true);
+                        }
+
+                        if(result.user) {
+                            return cb(null, result.all, result.user.favs);
+                        }                            
+                        return cb(null, result.all);
+                    });
+                },
+
+                getPlaceInfo: function(placeID, cb) {
+                    const route = this.server+'pois/'+placeID;
+                    $.get(route, function(result) {
+                        if(!result.success) {
+                            return cb(true);
+                        }
+                            
+                        return cb(null, result.poi);
+                    });
+                },
+
+                addToFavs: function(id, cb) {
+                    let route = this.server + 'users/favs/add';
+                    $.post(route, {id: id}, function(res) {
+                        if(res.success) {
+                            return cb(null);
+                        }
+                        return cb(true);
+		            });
+                },
+
+                removeFromFavs: function(id, cb) {
+                    let route = this.server + 'users/favs/delete';
+                    $.post(route, {id: id}, function(res) {
+                        if(res.success) {
+                            return cb(null);
+                        }
+                        return cb(true);
+		            });
+                },
+
+                filterPlaces: function(href, cb) {
+                    const url = this.server + 'pois/?'+href;
+                    $.get(url, function(pois) {
+                        return cb(pois);
+                    });
+                },
+
+                getStats: function(cb) {
+                    const route = this.server+'pois/all/likes';
+                    $.get(route, function(categories) {
+                        return cb(categories)
+                    });
+                },
+
+                render: function() {
+                    return <div>
+                            <Nav getUser={this.getUser} 
+                                logout={this.logout} 
+                                login={this.login} 
+                                register={this.register}/>
+
+                            <Map getUser={this.getUser}
+                                getPlaces={this.getPlaces}
+                                getPlaceInfo={this.getPlaceInfo}
+                                filterPlaces={this.filterPlaces}
+                                getStats={this.getStats}
+                                addToFavs={this.addToFavs}
+                                removeFromFavs={this.removeFromFavs}/>
+                        </div>;
+                }
+            });
+
+            ReactDOM.render(<Board/>, document.body);
+        </script>
+    </body>
+</html>

@@ -1,35 +1,23 @@
-var express = require('express');
-var passport = require('passport');
+const express = require('express');
+const passport = require('passport');
 
-var router = express.Router();
+const router = express.Router();
 
 // include controllers
-var HomeCtrl = require('../controllers/HomeCtrl');
-var UserCtrl = require('../controllers/UserCtrl');
-var PoiCtrl = require('../controllers/PoiCtrl');
-
-// static content routes
-router.get('/', HomeCtrl.index);
-
-router.get('/register', HomeCtrl.registerGet);
-router.post('/register', HomeCtrl.registerPost);
-
-router.get('/login', HomeCtrl.loginGet);
-router.post('/login', passport.authenticate('local'), HomeCtrl.loginPost);
-
-router.get('/logout', HomeCtrl.logout);
-
-router.get('/ping', HomeCtrl.ping);
+const UserCtrl = require('../controllers/UserCtrl');
+const PoiCtrl = require('../controllers/PoiCtrl');
 
 // user related routes
-router.get('/users/', UserCtrl.info);
-router.post('/users/favs/add/', UserCtrl.add);
-router.post('/users/favs/delete/', UserCtrl.remove);
+router.post('/login', UserCtrl.login);
+router.get('/logout', UserCtrl.logout);
+router.post('/register', UserCtrl.register);
+router.post('/users/favs/add', UserCtrl.addPlaceToFavs);
+router.post('/users/favs/delete', UserCtrl.removePlaceFromFavs);
 
 // pois related routes
-router.get('/pois/', PoiCtrl.filter);
-router.get('/pois/:id', PoiCtrl.info);
-router.get('/pois/all/likes/', PoiCtrl.stats);
-
+router.get('/pois/all/cash', PoiCtrl.getAllPois);
+router.get('/pois', PoiCtrl.filterPois);
+router.get('/pois/:id', PoiCtrl.getPoiInfo);
+router.get('/pois/all/likes', PoiCtrl.getPoiStats);
 
 module.exports = router;
