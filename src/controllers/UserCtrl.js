@@ -22,15 +22,23 @@ module.exports = {
 				return res.json(result); 
 			}
 
-			req.logIn(user, function(err) {
+			req.user = user;
+
+			req.login(user, {}, function(err) {
 				if (err) { 
 					result.error = 'Invalid username or password.';
 					return res.json(result); 
 				}
 				
 				result.success = true;
-				req.login();
-				res.json(result);
+
+				// req.session.save(function(err) {
+					// console.log(err);
+					// req.login(function(err) {
+					// 	console.log(err);
+						res.json(result);
+					// });
+				// });
 			});
 		})(req, res, next);
 	},
