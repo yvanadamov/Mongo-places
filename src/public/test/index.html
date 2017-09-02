@@ -336,22 +336,24 @@
 
                 addToFavs: function(id, cb) {
                     let route = this.server + 'users/favs/add';
-                    $.post(route, {id: id}, function(res) {
-                        if(res.success) {
-                            return cb(null);
-                        }
-                        return cb(true);
-		            });
+                    return cb(null);
+                    // $.post(route, {id: id}, function(res) {
+                    //     if(res.success) {
+                    //         return cb(null);
+                    //     }
+                    //     return cb(true);
+		            // });
                 },
 
                 removeFromFavs: function(id, cb) {
                     let route = this.server + 'users/favs/delete';
-                    $.post(route, {id: id}, function(res) {
-                        if(res.success) {
-                            return cb(null);
-                        }
-                        return cb(true);
-		            });
+                    return cb(null);
+                    // $.post(route, {id: id}, function(res) {
+                        // if(res.success) {
+                            // return cb(null);
+                        // }
+                        // return cb(true);
+		            // });
                 },
 
                 filterPlaces: function(href, cb) {
